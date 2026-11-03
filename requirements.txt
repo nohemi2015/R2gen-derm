@@ -1,0 +1,9 @@
+torch>=2.1
+torchvision>=0.16
+timm>=0.9
+numpy
+pandas>=2.0
+scikit-learn
+tabulate
+tqdm
+opencv-python  # only for main_plot.py (attention maps)

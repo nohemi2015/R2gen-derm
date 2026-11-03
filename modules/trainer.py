@@ -108,8 +108,14 @@ class BaseTrainer(object):
             record_table = pd.DataFrame()
         else:
             record_table = pd.read_csv(record_path)
-        record_table = record_table.append(self.best_recorder['val'], ignore_index=True)
-        record_table = record_table.append(self.best_recorder['test'], ignore_index=True)
+        # Only the checkpoint selected on the VALIDATION set is a valid result to report.
+        # The original R2Gen also stored the epoch with the best TEST score; that row is
+        # optimistic (model selection on the test set) and is intentionally not written.
+        row = dict(self.best_recorder['val'])
+        row['variant'] = getattr(self.args, 'variant', 'rm_mcln')
+        row['visual_extractor'] = self.args.visual_extractor
+        row['save_dir'] = self.args.save_dir
+        record_table = pd.concat([record_table, pd.DataFrame([row])], ignore_index=True)
         record_table.to_csv(record_path, index=False)
 
     def _prepare_device(self, n_gpu_use):
@@ -144,7 +150,7 @@ class BaseTrainer(object):
     def _resume_checkpoint(self, resume_path):
         resume_path = str(resume_path)
         print("Loading checkpoint: {} ...".format(resume_path))
-        checkpoint = torch.load(resume_path)
+        checkpoint = torch.load(resume_path, weights_only=False)
         self.start_epoch = checkpoint['epoch'] + 1
         self.mnt_best = checkpoint['monitor_best']
         self.model.load_state_dict(checkpoint['state_dict'])
@@ -171,7 +177,7 @@ class BaseTrainer(object):
         for key, value in self.best_recorder['val'].items():
             print('\t{:15s}: {}'.format(str(key), value))
 
-        print('Best results (w.r.t {}) in test set:'.format(self.args.monitor_metric))
+        print('[NOT VALID FOR REPORTING - selected on the test set] Best results (w.r.t {}) in test set:'.format(self.args.monitor_metric))
         for key, value in self.best_recorder['test'].items():
             print('\t{:15s}: {}'.format(str(key), value))
 

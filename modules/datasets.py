@@ -13,7 +13,7 @@ class BaseDataset(Dataset):
         self.split = split
         self.tokenizer = tokenizer
         self.transform = transform
-        self.ann = json.loads(open(self.ann_path, 'r').read())
+        self.ann = json.loads(open(self.ann_path, 'r', encoding='utf-8').read())
 
         self.examples = self.ann[self.split]
         for i in range(len(self.examples)):
@@ -42,7 +42,7 @@ class IuxrayMultiImageDataset(BaseDataset):
         return sample
 
 
-class MimiccxrSingleImageDataset(BaseDataset):
+class SingleImageDataset(BaseDataset):
     def __getitem__(self, idx):
         example = self.examples[idx]
         image_id = example['id']
@@ -55,3 +55,6 @@ class MimiccxrSingleImageDataset(BaseDataset):
         seq_length = len(report_ids)
         sample = (image_id, image, report_ids, report_masks, seq_length)
         return sample
+
+
+MimiccxrSingleImageDataset = SingleImageDataset

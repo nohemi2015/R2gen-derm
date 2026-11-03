@@ -12,8 +12,27 @@ class Tokenizer(object):
             self.clean_report = self.clean_report_iu_xray
         else:
             self.clean_report = self.clean_report_mimic_cxr
-        self.ann = json.loads(open(self.ann_path, 'r').read())
-        self.token2idx, self.idx2token = self.create_vocabulary()
+        vocab_path = getattr(args, 'vocab_path', None)
+        if vocab_path:
+            # Test time: reuse the exact training vocabulary (avoids index mismatch if the
+            # annotation file changes between training and testing).
+            self.token2idx, self.idx2token = self.load(vocab_path)
+        else:
+            self.ann = json.loads(open(self.ann_path, 'r', encoding='utf-8').read())
+            self.token2idx, self.idx2token = self.create_vocabulary()
+
+    def save(self, path):
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'threshold': self.threshold, 'dataset_name': self.dataset_name,
+                       'idx2token': {str(k): v for k, v in self.idx2token.items()}}, f, ensure_ascii=False, indent=1)
+
+    @staticmethod
+    def load(path):
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+        idx2token = {int(k): v for k, v in data['idx2token'].items()}
+        token2idx = {v: k for k, v in idx2token.items()}
+        return token2idx, idx2token
 
     def create_vocabulary(self):
         total_tokens = []
@@ -37,7 +56,7 @@ class Tokenizer(object):
             .replace('. 2. ', '. ').replace('. 3. ', '. ').replace('. 4. ', '. ').replace('. 5. ', '. ') \
             .replace(' 2. ', '. ').replace(' 3. ', '. ').replace(' 4. ', '. ').replace(' 5. ', '. ') \
             .strip().lower().split('. ')
-        sent_cleaner = lambda t: re.sub('[.,?;*!%^&_+():-\[\]{}]', '', t.replace('"', '').replace('/', '').
+        sent_cleaner = lambda t: re.sub(r'[.,?;*!%^&_+():-\[\]{}]', '', t.replace('"', '').replace('/', '').
                                         replace('\\', '').replace("'", '').strip().lower())
         tokens = [sent_cleaner(sent) for sent in report_cleaner(report) if sent_cleaner(sent) != []]
         report = ' . '.join(tokens) + ' .'
@@ -52,7 +71,7 @@ class Tokenizer(object):
             .replace('. 3. ', '. ').replace('. 4. ', '. ').replace('. 5. ', '. ').replace(' 2. ', '. ') \
             .replace(' 3. ', '. ').replace(' 4. ', '. ').replace(' 5. ', '. ') \
             .strip().lower().split('. ')
-        sent_cleaner = lambda t: re.sub('[.,?;*!%^&_+():-\[\]{}]', '', t.replace('"', '').replace('/', '')
+        sent_cleaner = lambda t: re.sub(r'[.,?;*!%^&_+():-\[\]{}]', '', t.replace('"', '').replace('/', '')
                                         .replace('\\', '').replace("'", '').strip().lower())
         tokens = [sent_cleaner(sent) for sent in report_cleaner(report) if sent_cleaner(sent) != []]
         report = ' . '.join(tokens) + ' .'

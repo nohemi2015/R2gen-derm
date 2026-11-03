@@ -1,5 +1,4 @@
 import numpy as np
-import cv2
 import torch
 
 
@@ -58,6 +57,7 @@ def repeat_tensors(n, x):
 
 
 def generate_heatmap(image, weights):
+    import cv2  # only needed for attention plots
     image = image.transpose(1, 2, 0)
     height, width, _ = image.shape
     weights = weights.reshape(int(weights.shape[0] ** 0.5), int(weights.shape[0] ** 0.5))

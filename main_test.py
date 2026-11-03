@@ -1,3 +1,4 @@
+import os
 import torch
 import argparse
 import numpy as np
@@ -7,6 +8,7 @@ from modules.metrics import compute_scores
 from modules.tester import Tester
 from modules.loss import compute_loss
 from models.r2gen import R2GenModel
+from modules.visual_extractor import feature_dim
 
 
 def parse_agrs():
@@ -17,20 +19,21 @@ def parse_agrs():
     parser.add_argument('--ann_path', type=str, default='data/iu_xray/annotation.json', help='the path to the directory containing the data.')
 
     # Data loader settings
-    parser.add_argument('--dataset_name', type=str, default='iu_xray', choices=['iu_xray', 'mimic_cxr'], help='the dataset to be used.')
+    parser.add_argument('--dataset_name', type=str, default='iu_xray', choices=['iu_xray', 'mimic_cxr', 'ham10000', 'brown_skin'], help='the dataset to be used.')
     parser.add_argument('--max_seq_length', type=int, default=60, help='the maximum sequence length of the reports.')
     parser.add_argument('--threshold', type=int, default=3, help='the cut off frequency for the words.')
     parser.add_argument('--num_workers', type=int, default=2, help='the number of workers for dataloader.')
     parser.add_argument('--batch_size', type=int, default=16, help='the number of samples for a batch')
 
     # Model settings (for visual extractor)
-    parser.add_argument('--visual_extractor', type=str, default='resnet101', help='the visual extractor to be used.')
-    parser.add_argument('--visual_extractor_pretrained', type=bool, default=True, help='whether to load the pretrained visual extractor')
+    parser.add_argument('--visual_extractor', type=str, default='resnet101', help='resnet101 | vit_base_patch16_224.augreg_in21k | vit_large_patch16_224.augreg_in21k')
+    parser.add_argument('--visual_extractor_pretrained', type=lambda v: str(v).lower() in ('1', 'true', 'yes'), default=True, help='whether to load the pretrained visual extractor')
 
     # Model settings (for Transformer)
     parser.add_argument('--d_model', type=int, default=512, help='the dimension of Transformer.')
     parser.add_argument('--d_ff', type=int, default=512, help='the dimension of FFN.')
-    parser.add_argument('--d_vf', type=int, default=2048, help='the dimension of the patch features.')
+    parser.add_argument('--d_vf', type=int, default=None, help='the dimension of the patch features (default: set from --visual_extractor).')
+    parser.add_argument('--variant', type=str, default='rm_mcln', choices=['base', 'rm', 'rm_mcln'], help='ablation: BASE, BASE+RM, BASE+RM+MCLN (full model).')
     parser.add_argument('--num_heads', type=int, default=8, help='the number of heads in Transformer.')
     parser.add_argument('--num_layers', type=int, default=3, help='the number of layers of Transformer.')
     parser.add_argument('--dropout', type=float, default=0.1, help='the dropout rate of Transformer.')
@@ -81,8 +84,14 @@ def parse_agrs():
     parser.add_argument('--seed', type=int, default=9233, help='.')
     parser.add_argument('--resume', type=str, help='whether to resume the training from existing checkpoints.')
     parser.add_argument('--load', type=str, help='whether to load a pre-trained model.')
+    parser.add_argument('--vocab_path', type=str, default=None, help='training vocabulary (default: vocab.json next to --load).')
+    parser.add_argument('--split', type=str, default='test', help='split to evaluate.')
 
     args = parser.parse_args()
+    if args.d_vf is None:
+        args.d_vf = feature_dim(args.visual_extractor)
+    elif args.d_vf != feature_dim(args.visual_extractor):
+        raise ValueError('--d_vf={} does not match {} ({})'.format(args.d_vf, args.visual_extractor, feature_dim(args.visual_extractor)))
     return args
 
 
@@ -96,11 +105,16 @@ def main():
     torch.backends.cudnn.benchmark = False
     np.random.seed(args.seed)
 
-    # create tokenizer
+    # create tokenizer from the vocabulary saved at training time
+    if args.vocab_path is None:
+        candidate = os.path.join(os.path.dirname(args.load), 'vocab.json')
+        if not os.path.exists(candidate):
+            raise FileNotFoundError('vocab.json not found next to the checkpoint; pass --vocab_path')
+        args.vocab_path = candidate
     tokenizer = Tokenizer(args)
 
     # create data loader
-    test_dataloader = R2DataLoader(args, tokenizer, split='test', shuffle=False)
+    test_dataloader = R2DataLoader(args, tokenizer, split=args.split, shuffle=False)
 
     # build model architecture
     model = R2GenModel(args, tokenizer)

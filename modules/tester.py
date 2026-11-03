@@ -1,12 +1,11 @@
+import json
 import logging
 import os
 from abc import abstractmethod
 
-import cv2
 import pandas as pd
 import torch
 
-from modules.utils import generate_heatmap
 from tqdm import tqdm
 
 
@@ -60,7 +59,7 @@ class BaseTester(object):
     def _load_checkpoint(self, load_path):
         load_path = str(load_path)
         self.logger.info("Loading checkpoint: {} ...".format(load_path))
-        checkpoint = torch.load(load_path)
+        checkpoint = torch.load(load_path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint['state_dict'])
 
 
@@ -74,7 +73,7 @@ class Tester(BaseTester):
         log = dict()
         self.model.eval()
         with torch.no_grad():
-            test_gts, test_res = [], []
+            test_gts, test_res, test_ids = [], [], []
             for batch_idx, (images_id, images, reports_ids, reports_masks) in tqdm(enumerate(self.test_dataloader)):
                 images, reports_ids, reports_masks = images.to(self.device), reports_ids.to(
                     self.device), reports_masks.to(self.device)
@@ -83,6 +82,7 @@ class Tester(BaseTester):
                 ground_truths = self.model.tokenizer.decode_batch(reports_ids[:, 1:].cpu().numpy())
                 test_res.extend(reports)
                 test_gts.extend(ground_truths)
+                test_ids.extend(images_id)
             test_met = self.metric_ftns({i: [gt] for i, gt in enumerate(test_gts)},
                                         {i: [re] for i, re in enumerate(test_res)})
             log.update(**{'test_' + k: v for k, v in test_met.items()})
@@ -91,9 +91,15 @@ class Tester(BaseTester):
             test_res, test_gts = pd.DataFrame(test_res), pd.DataFrame(test_gts)
             test_res.to_csv(os.path.join(self.save_dir, "res.csv"), index=False, header=False)
             test_gts.to_csv(os.path.join(self.save_dir, "gts.csv"), index=False, header=False)
+            pd.DataFrame({'id': test_ids, 'gt': list(test_gts[0]), 'pred': list(test_res[0])}).to_csv(
+                os.path.join(self.save_dir, "predictions.csv"), index=False)
+            with open(os.path.join(self.save_dir, "metrics.json"), 'w', encoding='utf-8') as f:
+                json.dump(log, f, indent=1)
         return log
 
     def plot(self):
+        import cv2
+        from modules.utils import generate_heatmap
         assert self.args.batch_size == 1 and self.args.beam_size == 1
         self.logger.info('Start to plot attention weights in the test set.')
         os.makedirs(os.path.join(self.save_dir, "attentions"), exist_ok=True)

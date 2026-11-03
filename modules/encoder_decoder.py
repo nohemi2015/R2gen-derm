@@ -35,13 +35,14 @@ def subsequent_mask(size):
 
 
 class Transformer(nn.Module):
-    def __init__(self, encoder, decoder, src_embed, tgt_embed, rm):
+    def __init__(self, encoder, decoder, src_embed, tgt_embed, rm, variant='rm_mcln'):
         super(Transformer, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self.src_embed = src_embed
         self.tgt_embed = tgt_embed
         self.rm = rm
+        self.variant = variant
 
     def forward(self, src, tgt, src_mask, tgt_mask):
         return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
@@ -50,8 +51,14 @@ class Transformer(nn.Module):
         return self.encoder(self.src_embed(src), src_mask)
 
     def decode(self, hidden_states, src_mask, tgt, tgt_mask):
+        if self.variant == 'base':
+            return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, None)
         memory = self.rm.init_memory(hidden_states.size(0)).to(hidden_states)
         memory = self.rm(self.tgt_embed(tgt), memory)
+        if self.variant == 'rm':
+            # BASE+RM: memory concatenated to the decoder output before the softmax.
+            out = self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, None)
+            return torch.cat([out, memory], dim=-1)
         return self.decoder(self.tgt_embed(tgt), hidden_states, src_mask, tgt_mask, memory)
 
 
@@ -116,19 +123,29 @@ class Decoder(nn.Module):
 
 
 class DecoderLayer(nn.Module):
-    def __init__(self, d_model, self_attn, src_attn, feed_forward, dropout, rm_num_slots, rm_d_model):
+    def __init__(self, d_model, self_attn, src_attn, feed_forward, dropout, rm_num_slots, rm_d_model, use_mcln=True):
         super(DecoderLayer, self).__init__()
         self.d_model = d_model
         self.self_attn = self_attn
         self.src_attn = src_attn
         self.feed_forward = feed_forward
-        self.sublayer = clones(ConditionalSublayerConnection(d_model, dropout, rm_num_slots, rm_d_model), 3)
+        if use_mcln:
+            self.sublayer = clones(ConditionalSublayerConnection(d_model, dropout, rm_num_slots, rm_d_model), 3)
+        else:
+            self.sublayer = clones(PlainSublayerConnection(d_model, dropout), 3)
 
     def forward(self, x, hidden_states, src_mask, tgt_mask, memory):
         m = hidden_states
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask), memory)
         x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask), memory)
         return self.sublayer[2](x, self.feed_forward, memory)
+
+
+class PlainSublayerConnection(SublayerConnection):
+    """Standard LayerNorm sublayer that ignores the memory argument (BASE and BASE+RM)."""
+
+    def forward(self, x, sublayer, memory=None):
+        return super(PlainSublayerConnection, self).forward(x, sublayer)
 
 
 class ConditionalSublayerConnection(nn.Module):
@@ -311,11 +328,12 @@ class EncoderDecoder(AttModel):
         model = Transformer(
             Encoder(EncoderLayer(self.d_model, c(attn), c(ff), self.dropout), self.num_layers),
             Decoder(
-                DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model),
+                DecoderLayer(self.d_model, c(attn), c(attn), c(ff), self.dropout, self.rm_num_slots, self.rm_d_model,
+                             use_mcln=(self.variant == 'rm_mcln')),
                 self.num_layers),
             lambda x: x,
             nn.Sequential(Embeddings(self.d_model, tgt_vocab), c(position)),
-            rm)
+            rm, variant=self.variant)
         for p in model.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -332,11 +350,16 @@ class EncoderDecoder(AttModel):
         self.rm_num_slots = args.rm_num_slots
         self.rm_num_heads = args.rm_num_heads
         self.rm_d_model = args.rm_d_model
+        self.variant = getattr(args, 'variant', 'rm_mcln')
+        assert self.variant in ('base', 'rm', 'rm_mcln')
 
         tgt_vocab = self.vocab_size + 1
 
         self.model = self.make_model(tgt_vocab)
-        self.logit = nn.Linear(args.d_model, tgt_vocab)
+        logit_in = args.d_model
+        if self.variant == 'rm':
+            logit_in += self.rm_num_slots * self.rm_d_model
+        self.logit = nn.Linear(logit_in, tgt_vocab)
 
     def init_hidden(self, bsz):
         return []
