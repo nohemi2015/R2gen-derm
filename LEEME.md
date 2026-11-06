@@ -83,3 +83,18 @@ A eso se suman las líneas base de recuperación y de clasificador + plantilla.
 - La referencia con la que se calculan las métricas es el reporte anotado completo, normalizado igual que en el entrenamiento. No se usa la copia decodificada por el modelo, que viene truncada y con `<unk>`. Por eso los números pueden quedar un poco por debajo de los que imprime R2Gen, y así deben reportarse tanto el modelo como las líneas base.
 - Si el modelo no supera con claridad a "clasificador + plantilla", el artículo debe decirlo e interpretarlo: en ese caso la tarea consiste sobre todo en clasificar.
 - Los ejemplos cualitativos (como las Figs. 6 y 7) deben salir de `predictions.csv` del modelo propuesto, con su id.
+
+## Control de tono contra calidad de imagen (`4_controles_tono.bat`)
+
+Las imágenes de Brown Skin son más oscuras y además más borrosas que sus originales. Para separar los dos efectos, `tools/tone_controls.py` crea dos versiones más de cada original claro del par de prueba:
+
+- **light_blur:** el original claro desenfocado hasta tener la misma nitidez que su versión oscura (varianza del laplaciano a 224×224). Conserva el color y pierde detalle.
+- **light_color:** el original claro con la estadística de color de su versión oscura (transferencia de Reinhard en CIELAB). Conserva el detalle y cambia el tono.
+
+`scripts/run_tone_controls.py` evalúa los modelos ya entrenados en las cuatro condiciones, sin reentrenar, y escribe `results/<experimento>/tables_tone_controls/tone_controls_summary.csv`.
+
+Cómo leer el resultado:
+- Si **light_color** cae como **dark**, la caída se debe al tono.
+- Si cae **light_blur**, se debe a la pérdida de detalle.
+
+El script solo usa corridas terminadas, es decir, las que ya tienen `test/metrics.json`.

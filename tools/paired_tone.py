@@ -1,4 +1,5 @@
-"""Same lesion on light vs dark skin: paired comparison for the Brown Skin experiment.
+"""Same lesion under two conditions (default: light vs dark skin): paired comparison.
+Columns keep the names light/dark; with --b light_blur or light_color, "dark" means that condition.
 
     python tools/paired_tone.py --details results/tables/ham_vitl_rm_mcln_pairs_run0_detail.csv [more runs]
 
@@ -34,11 +35,11 @@ def mcnemar_exact(b, c):
     return min(1.0, 2 * p)
 
 
-def analyse(path):
+def analyse(path, a='light', b='dark'):
     d = pd.read_csv(path, dtype={'id': str})
     d['bleu4'] = [sent_bleu4(g, p) for g, p in zip(d['gt'], d['pred'])]
-    light = d[d['tone'] == 'light'].drop_duplicates('pair').set_index('pair')
-    dark = d[d['tone'] == 'dark']
+    light = d[d['tone'] == a].drop_duplicates('pair').set_index('pair')
+    dark = d[d['tone'] == b]
     rows = []
     for _, r in dark.iterrows():
         if r['pair'] in light.index:
@@ -59,10 +60,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--details', nargs='+', required=True)
     ap.add_argument('--out', default=None, help='CSV with one row per run (+ mean/std)')
+    ap.add_argument('--a', default='light', help='reference condition (tone value)')
+    ap.add_argument('--b', default='dark', help='compared condition: dark, light_blur or light_color')
     args = ap.parse_args()
     res = []
     for path in args.details:
-        r, _ = analyse(path)
+        r, _ = analyse(path, args.a, args.b)
         r['run'] = os.path.basename(path)
         res.append(r)
     t = pd.DataFrame(res).set_index('run')
