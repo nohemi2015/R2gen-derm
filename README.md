@@ -1,61 +1,94 @@
-# R2Gen
+# R2Gen-derm: dermatological report generation across skin tones
 
-This is the implementation of [Generating Radiology Reports via Memory-driven Transformer](https://arxiv.org/pdf/2010.16056.pdf) at EMNLP-2020.
+Code for the paper **"Generation of dermatological reports from images of skin lesions using memory-based Transformer"** (N. Sánchez-Medel, R. Díaz-Hernández, K. A. Ramírez-Gutiérrez, S. Zapotecas-Martínez, L. Altamirano-Robles, J. J. Velázquez-Arreola; INAOE, Mexico), submitted to *Biomedical Signal Processing and Control*.
 
-## News
-- The codebase is kind of old so we refer the readers to this awesome project ([ViLMedic](https://github.com/jbdel/vilmedic)). You can also check our newly released [PTUnifier](https://github.com/zhjohnchan/ptunifier), which can perform various medical image-text tasks like radiology report generation.
-- The codes for visualization and clinical efficacy are updated.
+This repository adapts **R2Gen** (Chen et al., EMNLP 2020, <https://github.com/zhjohnchan/R2Gen>) to dermoscopic images. The original R2Gen README is kept in [`README_R2Gen.md`](README_R2Gen.md); please cite the original work as well (see below).
 
-## Citations
+## What was changed with respect to R2Gen
 
-If you use or extend our work, please cite our paper at EMNLP-2020.
-```
-@inproceedings{chen-emnlp-2020-r2gen,
-    title = "Generating Radiology Reports via Memory-driven Transformer",
-    author = "Chen, Zhihong and
-      Song, Yan  and
-      Chang, Tsung-Hui and
-      Wan, Xiang",
-    booktitle = "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing",
-    month = nov,
-    year = "2020",
-}
-```
+| Change | Files |
+| --- | --- |
+| ViT-L/16 and ViT-B/16 (timm, ImageNet-21k) visual extractors; `d_vf` set automatically (ViT-L 1024, ViT-B 768, ResNet-101 2048) | `modules/visual_extractor.py`, `main_*.py` |
+| Extractor-specific image normalisation | `modules/dataloaders.py` |
+| Ablation variants `--variant base / rm / rm_mcln` (BASE, +RM, +RM+MCLN) | `modules/encoder_decoder.py` |
+| Vocabulary saved at training (`vocab.json`) and reused at test time | `modules/tokenizers.py` |
+| `predictions.csv` and `metrics.json` written for every test run | `modules/tester.py` |
+| Only the validation-selected checkpoint is reported | `modules/trainer.py` |
+| CPU support and pandas 2 compatibility | `modules/*.py` |
+
+New tools:
+
+- `tools/make_splits.py` – leakage audit and lesion-level 70/10/20 splits.
+- `tools/build_brown_skin.py` – lesion-level HAM10000 splits, Brown Skin training images and light/dark test pairs.
+- `tools/evaluate.py` – BLEU-1–4, METEOR, ROUGE-L (COCO toolkit), diagnosis accuracy and macro-F1 extracted from the generated text; per class, per phototype and per tone; mean ± s.d. over seeds.
+- `tools/paired_tone.py` – paired light vs dark comparison with exact McNemar test.
+- `tools/baselines.py` – nearest-neighbour retrieval and classifier + template baselines.
+- `tools/tone_controls.py` – blur-matched and colour-matched (Reinhard, CIELAB) versions of the light images, to separate skin tone from loss of detail.
+- `tools/collect_tables.py` – result tables.
 
 ## Requirements
 
-- `torch==1.7.1`
-- `torchvision==0.8.2`
-- `opencv-python==4.4.0.42`
+Python 3.10+, PyTorch with CUDA, `timm`, `pandas`, `scikit-learn`, `scipy`, `Pillow`, and Java (for METEOR):
 
+```
+pip install -r requirements.txt
+```
 
-## Download R2Gen
-You can download the models we trained for each dataset from [here](https://github.com/zhjohnchan/R2Gen/blob/main/data/r2gen.md).
+## Data
 
-## Datasets
-We use two datasets (IU X-Ray and MIMIC-CXR) in our paper.
+- **HAM10000** (Tschandl et al., 2018) and the **ISIC 2018 Task 3 test set** (Codella et al., 2019): <https://challenge.isic-archive.com/data/>
+- **IU X-Ray** (Demner-Fushman et al., 2016), with the R2Gen annotation file.
+- **Brown Skin** (Sánchez-Medel et al.): dermoscopic images re-rendered on Fitzpatrick phototype VI by neural style transfer. This work uses a random subset of 182 images.
 
-For `IU X-Ray`, you can download the dataset from [here](https://drive.google.com/file/d/1c0BXEuDy8Cmm2jfN0YYGkQxFZd2ZIoLg/view?usp=sharing) and then put the files in `data/iu_xray`.
+Expected layout (relative to this folder):
 
-For `MIMIC-CXR`, you can download the dataset from [here](https://drive.google.com/file/d/1DS6NYirOXQf8qYieSVMvqNwuOlgAbM_E/view?usp=sharing) and then put the files in `data/mimic_cxr`. You can apply the dataset [here](https://drive.google.com/file/d/1DS6NYirOXQf8qYieSVMvqNwuOlgAbM_E/view?usp=sharing) with your license of [PhysioNet](https://physionet.org/content/mimic-cxr-jpg/2.0.0/).
+```
+../data/ham10000/images/{HAM10000_images_all, ISIC2018_Task3_Test_Images, "100 malignas", "100 benignas"}
+../data/ham10000/annotation_ham10000_full.json
+../data/ham10000/HAM10000_metadata.csv
+../data/ham10000/ISIC2018_Task3_Test_GroundTruth.csv
+../data/iu_xray/{images, annotation.json}
+```
 
-NOTE: The `IU X-Ray` dataset is of small size, and thus the variance of the results is large.
-There have been some works using `MIMIC-CXR` only and treating the whole `IU X-Ray` dataset as an extra test set.
+## Reproducing the experiments
 
-## Train
+```
+# 1. Annotation files (lesion-level splits + light/dark pairs)
+python tools/build_brown_skin.py --ham_ann ../data/ham10000/annotation_ham10000_full.json \
+    --ham_metadata ../data/ham10000/HAM10000_metadata.csv \
+    --isic_gt ../data/ham10000/ISIC2018_Task3_Test_GroundTruth.csv \
+    --image_root ../data/ham10000/images --bs_dirs "100 malignas" "100 benignas" \
+    --out_dir ../data/brown_skin_v2
 
-Run `bash train_iu_xray.sh` to train a model on the IU X-Ray data.
+# 2. Main experiments (3 seeds each; add --dry_run to print the commands)
+python scripts/run_experiments.py ham10000    --image_dir ../data/ham10000/images --ann_dir ../data/brown_skin_v2
+python scripts/run_experiments.py ham10000_bs --image_dir ../data/ham10000/images --ann_dir ../data/brown_skin_v2
+python scripts/run_experiments.py iu_xray     --image_dir ../data/iu_xray/images  --iu_ann ../data/iu_xray/annotation.json
 
-Run `bash train_mimic_cxr.sh` to train a model on the MIMIC-CXR data.
+# 3. Skin tone vs loss of detail (no retraining)
+python tools/tone_controls.py --ann_path ../data/brown_skin_v2/bs_paired_test.json \
+    --image_root ../data/ham10000/images --out_ann ../data/brown_skin_v2/bs_controls_test.json
+python scripts/run_tone_controls.py ham10000 --image_dir ../data/ham10000/images \
+    --ann ../data/brown_skin_v2/bs_controls_test.json
+```
 
-## Test
+| Experiment | Training data | Evaluation |
+| --- | --- | --- |
+| `ham10000` | HAM10000 (lesion-level split) | ISIC 2018 test set (1,511) and 83 light/dark pairs |
+| `ham10000_bs` | HAM10000 + 89 Brown Skin images | same |
+| `iu_xray` | IU X-Ray | IU X-Ray |
 
-Run `bash test_iu_xray.sh` to test a model on the IU X-Ray data.
+Configurations in `ham10000`: ResNet-101 and ViT-L/16 with BASE, +RM and +RM+MCLN, and ViT-B/16 with +RM+MCLN, plus the two baselines. Tables are written to `results/<experiment>/tables`, `tables_bs_pairs` and `tables_tone_controls`.
 
-Run `bash test_mimic_cxr.sh` to test a model on the MIMIC-CXR data.
+## Citation
 
-Follow [CheXpert](https://github.com/MIT-LCP/mimic-cxr/tree/master/txt/chexpert) or [CheXbert](https://github.com/stanfordmlgroup/CheXbert) to extract the labels and then run `python compute_ce.py`. Note that there are several steps that might accumulate the errors for the computation, e.g., the labelling error and the label conversion. We refer the readers to those new metrics, e.g., [RadGraph](https://github.com/jbdel/rrg_emnlp) and [RadCliQ](https://github.com/rajpurkarlab/CXR-Report-Metric).
+If you use this code, please cite our paper (reference to be added on publication) and R2Gen:
 
-## Visualization
-
-Run `bash plot_mimic_cxr.sh` to visualize the attention maps on the MIMIC-CXR data.
+```
+@inproceedings{chen-emnlp-2020-r2gen,
+    title = "Generating Radiology Reports via Memory-driven Transformer",
+    author = "Chen, Zhihong and Song, Yan and Chang, Tsung-Hui and Wan, Xiang",
+    booktitle = "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing",
+    year = "2020",
+}
+```
