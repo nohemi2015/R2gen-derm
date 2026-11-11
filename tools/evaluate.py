@@ -88,9 +88,12 @@ def nlg(df):
 
 def macro_f1(y_true, y_pred):
     from sklearn.metrics import f1_score
+    pairs = [(t, p if isinstance(p, str) else 'none') for t, p in zip(y_true, y_pred) if isinstance(t, str) and t]
+    if not pairs:
+        return np.nan  # no diagnostic labels (e.g. IU X-Ray)
+    y_true, y_pred = zip(*pairs)
     labels = sorted(set(y_true))
-    y_pred = [p if p is not None else 'none' for p in y_pred]
-    return f1_score(y_true, y_pred, labels=labels, average='macro', zero_division=0)
+    return f1_score(list(y_true), list(y_pred), labels=labels, average='macro', zero_division=0)
 
 
 def evaluate_run(pred_csv, meta):
@@ -100,9 +103,11 @@ def evaluate_run(pred_csv, meta):
     # so model outputs and baselines are scored against exactly the same text.
     df['gt'] = [clean(r) if isinstance(r, str) and r else clean(g) for r, g in zip(df['report'], df['gt'])]
     df['pred'] = df['pred'].map(clean)
-    df['label'] = df['label'].fillna(df['gt'].map(find_class))
+    has_labels = meta['label'].notna().any()  # False for IU X-Ray: no diagnosis to check
+    if has_labels:
+        df['label'] = df['label'].fillna(df['gt'].map(find_class))
     df['dx_pred'] = df['pred'].map(find_class)
-    df['dx_ok'] = df['dx_pred'] == df['label']
+    df['dx_ok'] = np.where(df['label'].notna(), df['dx_pred'] == df['label'], np.nan)
     df['pt_gt'] = df['gt'].map(find_phototype)
     df['pt_pred'] = df['pred'].map(find_phototype)
     has_pt = df['pt_gt'].notna()
@@ -111,7 +116,7 @@ def evaluate_run(pred_csv, meta):
     def block(sub):
         row = nlg(sub)
         row['n'] = len(sub)
-        row['dx_acc'] = sub['dx_ok'].mean() if len(sub) else np.nan
+        row['dx_acc'] = sub['dx_ok'].astype(float).mean() if sub['dx_ok'].notna().any() else np.nan
         row['pt_acc'] = sub['pt_ok'].astype(float).mean() if sub['pt_ok'].notna().any() else np.nan
         return row
 
