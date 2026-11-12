@@ -23,8 +23,12 @@ class R2DataLoader(DataLoader):
             mean, std = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
         if split == 'train':
+            tone = []
+            if getattr(args, 'tone_aug_refs', None) and getattr(args, 'tone_aug_p', 0) > 0:
+                from .tone_aug import ToneAugment
+                tone = [ToneAugment(args.tone_aug_refs, args.tone_aug_p)]
             self.transform = transforms.Compose([
-                transforms.Resize(256),
+                transforms.Resize(256)] + tone + [
                 transforms.RandomCrop(224),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),

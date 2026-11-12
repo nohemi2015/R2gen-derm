@@ -98,3 +98,10 @@ Cómo leer el resultado:
 - Si cae **light_blur**, se debe a la pérdida de detalle.
 
 El script solo usa corridas terminadas, es decir, las que ya tienen `test/metrics.json`.
+
+## Experimentos A y B (`5_experimentos_AB.bat`)
+
+- **A, línea base fuerte (`ham10000_clf`):** se ajusta el ViT-L completo como clasificador con tres salidas (diagnóstico, tipo de confirmación y localización) y se llena la plantilla del reporte con las tres predicciones (`tools/finetune_classifier.py`). Sirve para responder si el generador hace algo más que clasificar.
+- **B, aumento de tono balanceado (`ham10000_toneaug`):** a cada imagen de entrenamiento, de las 7 clases por igual y con probabilidad 0.5, se le da el color de una imagen de Brown Skin de entrenamiento (transferencia de Reinhard, `modules/tone_aug.py`). Las referencias de color son solo las 89 imágenes de Brown Skin cuyos originales están en entrenamiento (`tools/build_tone_refs.py`), así que ninguna lesión de prueba se usa. Se entrenan R2Gen, el modelo propuesto y el clasificador de A.
+
+Las dos se evalúan en la prueba de ISIC 2018, en los 83 pares de piel clara y oscura y en el control de tono.

@@ -35,6 +35,8 @@ def parse_agrs():
     parser.add_argument('--d_model', type=int, default=512, help='the dimension of Transformer.')
     parser.add_argument('--d_ff', type=int, default=512, help='the dimension of FFN.')
     parser.add_argument('--d_vf', type=int, default=None, help='the dimension of the patch features (default: set from --visual_extractor).')
+    parser.add_argument('--tone_aug_refs', type=str, default=None, help='tone_refs.json from tools/build_tone_refs.py (skin-tone augmentation, all classes).')
+    parser.add_argument('--tone_aug_p', type=float, default=0.0, help='probability of the skin-tone augmentation per training image.')
     parser.add_argument('--variant', type=str, default='rm_mcln', choices=['base', 'rm', 'rm_mcln'], help='ablation: BASE, BASE+RM, BASE+RM+MCLN (full model).')
     parser.add_argument('--num_heads', type=int, default=8, help='the number of heads in Transformer.')
     parser.add_argument('--num_layers', type=int, default=3, help='the number of layers of Transformer.')

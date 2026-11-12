@@ -51,6 +51,12 @@ def main():
         details = []
         for run_dir in runs:
             a = json.load(open(os.path.join(run_dir, 'args.json'), encoding='utf-8'))
+            if a.get('model') == 'classifier':  # tools/finetune_classifier.py
+                run([py, 'tools/finetune_classifier.py', 'predict', '--ann_path', args.ann,
+                     '--image_dir', args.image_dir, '--load', os.path.join(run_dir, 'model_best.pth'),
+                     '--save_dir', os.path.join(run_dir, 'test_tone_controls')])
+                details.append(os.path.join(run_dir, 'test_tone_controls'))
+                continue
             run([py, 'main_test.py', '--image_dir', args.image_dir, '--ann_path', args.ann,
                  '--dataset_name', a['dataset_name'], '--visual_extractor', a['visual_extractor'],
                  '--variant', a.get('variant', 'rm_mcln'), '--visual_extractor_pretrained', 'false',  # weights come from the checkpoint

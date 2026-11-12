@@ -25,6 +25,8 @@ New tools:
 - `tools/baselines.py` – nearest-neighbour retrieval and classifier + template baselines.
 - `tools/tone_controls.py` – blur-matched and colour-matched (Reinhard, CIELAB) versions of the light images, to separate skin tone from loss of detail.
 - `tools/collect_tables.py` – result tables.
+- `tools/finetune_classifier.py` – strong baseline: fully fine-tuned ViT-L with three heads (diagnosis, confirmation type, localisation) + template.
+- `modules/tone_aug.py`, `tools/build_tone_refs.py` – skin-tone augmentation balanced across classes (Reinhard transfer to the colour of Brown Skin training images only).
 
 ## Requirements
 
@@ -77,6 +79,8 @@ python scripts/run_tone_controls.py ham10000 --image_dir ../data/ham10000/images
 | `ham10000` | HAM10000 (lesion-level split) | ISIC 2018 test set (1,511) and 83 light/dark pairs |
 | `ham10000_bs` | HAM10000 + 89 Brown Skin images | same |
 | `iu_xray` | IU X-Ray | IU X-Ray |
+| `ham10000_clf` | HAM10000, fine-tuned classifier + template | same as `ham10000` |
+| `ham10000_toneaug` | HAM10000 with class-balanced skin-tone augmentation | same as `ham10000` |
 
 Configurations in `ham10000`: ResNet-101 and ViT-L/16 with BASE, +RM and +RM+MCLN, and ViT-B/16 with +RM+MCLN, plus the two baselines. Tables are written to `results/<experiment>/tables`, `tables_bs_pairs` and `tables_tone_controls`.
 
