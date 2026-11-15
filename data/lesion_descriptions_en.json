@@ -1,0 +1,114 @@
+[
+  {
+    "lesion_id": "IMG_NV_001",
+    "diagnosis": "Nevus (NV)",
+    "description": "Small, symmetrical pigmented lesion with uniform brown color and well-defined borders. No signs of evolution.",
+    "features": {
+      "asymmetry": false,
+      "irregular_borders": false,
+      "variegated_color": false,
+      "diameter": "3.8 mm",
+      "evolution": "stable"
+    },
+    "location": "Left arm",
+    "skin_phototype": "Fitzpatrick type III",
+    "lesion_type": "Benign",
+    "recommended_study": "Routine dermatoscopic evaluation and follow-up"
+  },
+  {
+    "lesion_id": "IMG_BKL_001",
+    "diagnosis": "Benign keratosis (BKL)",
+    "description": "Raised lesion with rough surface and well-defined borders. Light brown color, no recent changes.",
+    "features": {
+      "asymmetry": false,
+      "irregular_borders": false,
+      "variegated_color": false,
+      "diameter": "5.5 mm",
+      "evolution": "no changes in 6 months"
+    },
+    "location": "Lower back",
+    "skin_phototype": "Fitzpatrick type II",
+    "lesion_type": "Benign",
+    "recommended_study": "Routine dermatoscopic evaluation and follow-up"
+  },
+  {
+    "lesion_id": "IMG_MEL_001",
+    "diagnosis": "Melanoma (MEL)",
+    "description": "Dark, asymmetrical lesion with multiple shades and irregular borders. Rapid growth observed.",
+    "features": {
+      "asymmetry": true,
+      "irregular_borders": true,
+      "variegated_color": true,
+      "diameter": "7.6 mm",
+      "evolution": "rapid growth in 2 months"
+    },
+    "location": "Right leg",
+    "skin_phototype": "Fitzpatrick type I",
+    "lesion_type": "Malignant",
+    "recommended_study": "Dermatoscopic biopsy and urgent histopathological evaluation"
+  },
+  {
+    "lesion_id": "IMG_AKIEC_001",
+    "diagnosis": "Actinic keratosis / intraepithelial carcinoma (AKIEC)",
+    "description": "Scaly lesion with irregular borders, reddish color with whitish areas. Texture and size changes observed recently.",
+    "features": {
+      "asymmetry": true,
+      "irregular_borders": true,
+      "variegated_color": true,
+      "diameter": "6.3 mm",
+      "evolution": "texture changes in the last 4 months"
+    },
+    "location": "Scalp",
+    "skin_phototype": "Fitzpatrick type II",
+    "lesion_type": "Malignant",
+    "recommended_study": "Dermatoscopic biopsy and urgent histopathological evaluation"
+  },
+  {
+    "lesion_id": "IMG_BCC_001",
+    "diagnosis": "Basal cell carcinoma (BCC)",
+    "description": "Nodular lesion, pink in color, with pearly borders and central ulceration. Slow but steady evolution.",
+    "features": {
+      "asymmetry": true,
+      "irregular_borders": true,
+      "variegated_color": false,
+      "diameter": "5.9 mm",
+      "evolution": "progressive growth over 1 year"
+    },
+    "location": "Nose",
+    "skin_phototype": "Fitzpatrick type I",
+    "lesion_type": "Malignant",
+    "recommended_study": "Dermatoscopic biopsy and urgent histopathological evaluation"
+  },
+  {
+    "lesion_id": "IMG_VASC_001",
+    "diagnosis": "Vascular lesion (VASC)",
+    "description": "Reddish, flat lesion, well defined and homogeneous. No growth or changes.",
+    "features": {
+      "asymmetry": false,
+      "irregular_borders": false,
+      "variegated_color": false,
+      "diameter": "4.2 mm",
+      "evolution": "stable"
+    },
+    "location": "Left thigh",
+    "skin_phototype": "Fitzpatrick type IV",
+    "lesion_type": "Benign",
+    "recommended_study": "Clinical evaluation with dermatoscopy, follow-up if necessary"
+  },
+  {
+    "lesion_id": "IMG_DF_001",
+    "diagnosis": "Dermatofibroma (DF)",
+    "description": "Firm lesion, dark brown, with regular borders and slightly raised surface. No recent changes.",
+    "features": {
+      "asymmetry": false,
+      "irregular_borders": false,
+      "variegated_color": false,
+      "diameter": "5.0 mm",
+      "evolution": "no changes"
+    },
+    "location": "Right calf",
+    "skin_phototype": "Fitzpatrick type III",
+    "lesion_type": "Benign",
+    "recommended_study": "Routine dermatoscopic evaluation and follow-up"
+  }
+]

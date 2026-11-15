@@ -19,6 +19,9 @@ ham10000_clf     experiment A: strong baseline. ViT-L fine-tuned as a 3-head cla
 ham10000_toneaug experiment B: skin-tone augmentation balanced across the 7 classes (Reinhard colour
                  transfer to the colour of Brown Skin TRAINING images, p = 0.5). R2Gen, proposed model
                  and the fine-tuned classifier, 3 seeds. Trained on HAM10000 images only.
+ham10000_desc    descriptive reports (tools/build_descriptive_reports.py, from data/lesion_descriptions_en.json)
+                 instead of the short metadata template. R2Gen, ViT-L BASE and the proposed model, 3 seeds,
+                 plus retrieval and classifier+template baselines. Same splits and test sets as ham10000.
 """
 import argparse
 import os
@@ -32,7 +35,7 @@ SHORT = {'resnet101': 'r101', VITL: 'vitl', VITB: 'vitb'}
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('experiment', choices=['ham10000', 'ham10000_bs', 'iu_xray', 'ham10000_clf', 'ham10000_toneaug'])
+    ap.add_argument('experiment', choices=['ham10000', 'ham10000_bs', 'iu_xray', 'ham10000_clf', 'ham10000_toneaug', 'ham10000_desc'])
     ap.add_argument('--image_dir', required=True)
     ap.add_argument('--ann_dir', default=None, help='output folder of tools/build_brown_skin.py')
     ap.add_argument('--iu_ann', default=None)
@@ -59,6 +62,12 @@ def main():
         name = 'ham10000_plus_bs.json' if args.experiment == 'ham10000_bs' else 'ham10000_lesion.json'
         train_ann, dsname = os.path.join(args.ann_dir, name), 'ham10000'
         paired = os.path.join(args.ann_dir, 'bs_paired_test.json')
+        if args.experiment == 'ham10000_desc':
+            desc = [os.path.splitext(f)[0] + '_desc.json' for f in (train_ann, paired)]
+            if not all(os.path.exists(f) for f in desc):
+                run([py, 'tools/build_descriptive_reports.py', '--descriptions',
+                     os.path.join('data', 'lesion_descriptions_en.json'), '--ann', train_ann, paired])
+            train_ann, paired = desc
         epochs, step = args.epochs or 50, 25
         configs = [('resnet101', 'base'), ('resnet101', 'rm'), ('resnet101', 'rm_mcln'),
                    (VITL, 'base'), (VITL, 'rm'), (VITL, 'rm_mcln'), (VITB, 'rm_mcln')]
@@ -66,6 +75,8 @@ def main():
             configs = [('resnet101', 'rm_mcln'), (VITL, 'rm_mcln')]
         if args.experiment == 'ham10000_clf':
             configs = []
+        if args.experiment == 'ham10000_desc':
+            configs = [('resnet101', 'rm_mcln'), (VITL, 'base'), (VITL, 'rm_mcln')]
 
     tone = []
     if args.experiment == 'ham10000_toneaug':
@@ -75,8 +86,9 @@ def main():
                  '--image_dir', args.image_dir, '--out', refs])
         tone = ['--tone_aug_refs', refs, '--tone_aug_p', str(args.tone_aug_p)]
 
+    max_len = '80' if args.experiment == 'ham10000_desc' else '60'
     common = ['--image_dir', args.image_dir, '--dataset_name', dsname,
-              '--max_seq_length', '60', '--threshold', '3', '--batch_size', '16']
+              '--max_seq_length', max_len, '--threshold', '3', '--batch_size', '16']
     for ve, var in configs:
         tag = '{}_{}'.format(SHORT[ve], var)
         main_runs, pair_details = [], []
@@ -126,7 +138,7 @@ def main():
         run([py, 'tools/paired_tone.py', '--details'] +
             ['{}_run{}_detail.csv'.format(prefix, i) for i in range(len(seeds))] + ['--out', prefix + '_paired.csv'])
 
-    if args.experiment == 'ham10000':
+    if args.experiment in ('ham10000', 'ham10000_desc'):
         run([py, 'tools/baselines.py', '--image_dir', args.image_dir, '--ann_path', train_ann,
              '--visual_extractor', VITL, '--out_dir', os.path.join(res, 'baselines')])
         for b in ('retrieval', 'template'):

@@ -105,3 +105,7 @@ El script solo usa corridas terminadas, es decir, las que ya tienen `test/metric
 - **B, aumento de tono balanceado (`ham10000_toneaug`):** a cada imagen de entrenamiento, de las 7 clases por igual y con probabilidad 0.5, se le da el color de una imagen de Brown Skin de entrenamiento (transferencia de Reinhard, `modules/tone_aug.py`). Las referencias de color son solo las 89 imágenes de Brown Skin cuyos originales están en entrenamiento (`tools/build_tone_refs.py`), así que ninguna lesión de prueba se usa. Se entrenan R2Gen, el modelo propuesto y el clasificador de A.
 
 Las dos se evalúan en la prueba de ISIC 2018, en los 83 pares de piel clara y oscura y en el control de tono.
+
+## Reportes descriptivos (`6_reportes_descriptivos.bat`)
+
+`tools/build_descriptive_reports.py` sustituye la plantilla corta de metadatos por un reporte descriptivo de varias frases. Usa la descripción de cada tipo de lesión de `data/lesion_descriptions_en.json`, los criterios ABC (asimetría, bordes y color), si es benigna o maligna y el estudio recomendado, junto con el diagnóstico y la localización reales de cada imagen. Del JSON no se usan el diámetro, la evolución, la localización de ejemplo ni el fototipo, porque no se pueden obtener de la imagen. Tampoco se usan las frases sobre crecimiento o cambios en el tiempo. El experimento `ham10000_desc` entrena R2Gen, ViT-L BASE y el modelo propuesto con 3 semillas y longitud máxima de 80 tokens. Se evalúa en la prueba de ISIC 2018 y en los pares de Brown Skin.
