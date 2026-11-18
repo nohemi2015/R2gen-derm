@@ -76,7 +76,7 @@ def main():
         if args.experiment == 'ham10000_clf':
             configs = []
         if args.experiment == 'ham10000_desc':
-            configs = [('resnet101', 'rm_mcln'), (VITL, 'base'), (VITL, 'rm_mcln')]
+            configs = [('resnet101', 'rm_mcln'), (VITL, 'base'), (VITL, 'rm'), (VITL, 'rm_mcln')]
 
     tone = []
     if args.experiment == 'ham10000_toneaug':
