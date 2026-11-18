@@ -1,0 +1,10 @@
+group,value,BLEU_1,BLEU_2,BLEU_3,BLEU_4,METEOR,ROUGE_L,dx_acc,pt_acc,dx_f1
+all,all,,,,,,,,,
+class,akiec,,,,,,,,,
+class,bcc,,,,,,,,,
+class,bkl,,,,,,,,,
+class,df,,,,,,,,,
+class,mel,,,,,,,,,
+class,nv,,,,,,,,,
+class,vasc,,,,,,,,,
+tone,light,,,,,,,,,
