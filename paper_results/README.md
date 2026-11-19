@@ -11,3 +11,8 @@ Per-image predictions (`*_runN_detail.csv`: id, reference, generated report, tru
 | `ham10000_bs_short_*` | Exploratory experiment with Brown Skin images added to training |
 | `iu_xray_tables` | IU X-Ray |
 | `revision_stats` | Lesion-clustered bootstrap intervals, McNemar tables and confusion matrices |
+| `cost` | Latency per image: visual extractor and decoding timed separately (`tools/measure_latency_split.py`) |
+| `tone_controls` | Per-image predictions on the 83 paired lesions under original, blur, colour and darkened conditions |
+| `revision_stats/bootstrap_10000` | 10,000-resample lesion-clustered intervals (reported in the paper), BLEU-4 without the recommended-study sentence, tone-control intervals |
+
+Annotation files with the lesion-level splits and the lesion groups of the test set are in `data/splits`.
