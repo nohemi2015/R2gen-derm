@@ -1,0 +1,7 @@
+run,model,n_images,device,precision,beam_size,max_len,tokens_mean,extractor_ms_mean,extractor_ms_median,extractor_ms_p25,extractor_ms_p75,extractor_ms_sd,decoding_ms_mean,decoding_ms_median,decoding_ms_p25,decoding_ms_p75,decoding_ms_sd,total_ms_mean,total_ms_median,total_ms_p25,total_ms_p75,total_ms_sd
+results\ham10000_desc\vitl_base_s0,vit_large_patch16_224.augreg_in21k base,200,NVIDIA GeForce RTX 5090,float32,3.0,80.0,50.8,7.8,7.8,7.8,7.8,0.0,298.6,298.6,297.7,299.4,1.4,306.5,306.4,305.5,307.2,1.4
+results\ham10000_desc\vitl_rm_s0,vit_large_patch16_224.augreg_in21k rm,200,NVIDIA GeForce RTX 5090,float32,3.0,80.0,50.9,7.8,7.8,7.8,7.9,0.1,1669.6,1586.7,1578.9,1772.1,97.0,1677.4,1594.6,1586.8,1779.9,97.0
+results\ham10000_desc\vitl_rm_mcln_s0,vit_large_patch16_224.augreg_in21k rm_mcln,200,NVIDIA GeForce RTX 5090,float32,3.0,80.0,50.9,7.8,7.8,7.8,7.8,0.1,1930.7,1929.2,1923.8,1936.1,12.0,1938.5,1937.0,1931.6,1943.9,12.0
+results\ham10000_desc\r101_rm_mcln_s0,resnet101 rm_mcln,200,NVIDIA GeForce RTX 5090,float32,3.0,80.0,51.0,5.6,5.5,5.4,5.7,0.3,1933.5,1933.5,1928.4,1939.9,10.9,1939.1,1939.1,1934.0,1945.6,10.8
+results\ham10000\vitb_rm_mcln_s0,vit_base_patch16_224.augreg_in21k rm_mcln,200,NVIDIA GeForce RTX 5090,float32,3.0,60.0,16.4,3.4,3.3,3.3,3.4,0.1,1196.3,1196.3,1191.7,1201.9,9.9,1199.7,1199.6,1195.1,1205.3,9.9
+results\ham10000_clf\clf_vitl_s0,classifier vit_large_patch16_224.augreg_in21k,200,NVIDIA GeForce RTX 5090,float32,,,0.0,7.8,7.8,7.8,7.8,0.1,0.0,0.0,0.0,0.0,0.0,7.8,7.8,7.8,7.8,0.1
