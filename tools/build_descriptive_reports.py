@@ -15,6 +15,9 @@ the description about growth or changes over time are dropped.
     python tools/build_descriptive_reports.py --descriptions data/lesion_descriptions_en.json \
         --ann ../data/brown_skin_v2/ham10000_lesion.json ../data/brown_skin_v2/bs_paired_test.json
 writes ham10000_lesion_desc.json and bs_paired_test_desc.json next to the inputs.
+
+With --v2 (revision experiment) the recommended-study sentence is removed and, when the location is not recorded,
+the location clause is omitted instead of verbalised ("an unrecorded site"); outputs end in _desc2.json.
 """
 import argparse
 import json
@@ -51,13 +54,17 @@ def load_descriptions(path):
     return out
 
 
-def describe(entry, desc):
+def describe(entry, desc, v2=False):
     m = TEMPLATE.search(entry['report'].strip())
     if not m:
         raise ValueError('unexpected report: ' + entry['report'])
     dx, _, site = [g.strip() for g in m.groups()]
-    site = 'an unrecorded site' if site.lower() == 'unknown' else site
     d = desc[entry['label']]
+    if v2:
+        where = '' if site.lower() == 'unknown' else ', located on {}'.format(site)
+        return ('The image shows a lesion suggestive of {dx}. {description} The lesion is {shape}, with {borders} '
+                'borders and {colour} colour{where}. It is classified as {kind}.').format(dx=dx, where=where, **d)
+    site = 'an unrecorded site' if site.lower() == 'unknown' else site
     return ('The image shows a lesion suggestive of {dx}. {description} The lesion is {shape}, with {borders} '
             'borders and {colour} colour, located on {site}. It is classified as {kind}. '
             'Recommended study: {study}.').format(dx=dx, site=site, **d)
@@ -67,6 +74,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--descriptions', required=True)
     ap.add_argument('--ann', nargs='+', required=True)
+    ap.add_argument('--v2', action='store_true', help='no recommendation; omit location when not recorded')
     args = ap.parse_args()
     desc = load_descriptions(args.descriptions)
     for path in args.ann:
@@ -74,8 +82,8 @@ def main():
         for split in ann.values():
             for e in split:
                 e['report_template'] = e['report']
-                e['report'] = describe(e, desc)
-        out = os.path.splitext(path)[0] + '_desc.json'
+                e['report'] = describe(e, desc, args.v2)
+        out = os.path.splitext(path)[0] + ('_desc2.json' if args.v2 else '_desc.json')
         json.dump(ann, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
         n = sum(len(v) for v in ann.values())
         distinct = len({e['report'] for v in ann.values() for e in v})

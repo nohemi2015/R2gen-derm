@@ -7,6 +7,26 @@ import pandas as pd
 from numpy import inf
 
 
+
+MALIGNANT = {'akiec', 'bcc', 'mel'}
+
+
+def content_metrics(gts, res):
+    """Validation diagnosis accuracy and Youden index (sensitivity + specificity - 1) for the study-defined
+    malignant group, from the diagnosis stated in each report. Used only to save the alternative checkpoints
+    model_best_acc.pth and model_best_youden.pth (revision analysis); the main checkpoint is still chosen by BLEU-4."""
+    from tools.evaluate import find_class  # local import: tools/ is a namespace package next to main_train.py
+    t = [find_class(g) for g in gts]
+    p = [find_class(r) for r in res]
+    ok = [a is not None and a == b for a, b in zip(t, p)]
+    pos = [a in MALIGNANT for a in t]
+    ppos = [b in MALIGNANT for b in p]
+    n_pos = max(1, sum(pos))
+    n_neg = max(1, len(pos) - sum(pos))
+    sens = sum(a and b for a, b in zip(pos, ppos)) / n_pos
+    spec = sum((not a) and (not b) for a, b in zip(pos, ppos)) / n_neg
+    return {'dx_acc': sum(ok) / max(1, len(ok)), 'youden': sens + spec - 1}
+
 class BaseTrainer(object):
     def __init__(self, model, criterion, metric_ftns, optimizer, args):
         self.args = args
@@ -89,6 +109,7 @@ class BaseTrainer(object):
 
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=best)
+            self._save_alternative(epoch, log)
         self._print_best()
         self._print_best_to_file()
 
@@ -131,6 +152,28 @@ class BaseTrainer(object):
         device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
         list_ids = list(range(n_gpu_use))
         return device, list_ids
+
+    def _save_alternative(self, epoch, log):
+        # Alternative validation-selected checkpoints (revision): best validation diagnosis accuracy and best
+        # validation Youden index for the malignant group. Ties keep the earlier epoch. The test set is never used.
+        if not hasattr(self, 'alt_best'):
+            self.alt_best = {'dx_acc': -1.0, 'youden': -2.0}
+        rows = getattr(self, 'epoch_rows', [])
+        rows.append({k: v for k, v in log.items() if not isinstance(v, (list, dict))})
+        self.epoch_rows = rows
+        import csv
+        keys = sorted({k for r in rows for k in r})
+        with open(os.path.join(self.checkpoint_dir, 'epoch_log.csv'), 'w', newline='') as f:
+            w = csv.DictWriter(f, fieldnames=keys)
+            w.writeheader()
+            w.writerows(rows)
+        for key, name in (('dx_acc', 'model_best_acc.pth'), ('youden', 'model_best_youden.pth')):
+            v = log.get('val_' + key)
+            if v is not None and v > self.alt_best[key]:
+                self.alt_best[key] = v
+                state = {'epoch': epoch, 'state_dict': self.model.state_dict(), 'selected_by': 'val_' + key, 'value': v}
+                torch.save(state, os.path.join(self.checkpoint_dir, name))
+                print('Saving alternative checkpoint {} (val_{} = {:.4f})'.format(name, key, v))
 
     def _save_checkpoint(self, epoch, save_best=False):
         state = {
@@ -221,6 +264,7 @@ class Trainer(BaseTrainer):
             val_met = self.metric_ftns({i: [gt] for i, gt in enumerate(val_gts)},
                                        {i: [re] for i, re in enumerate(val_res)})
             log.update(**{'val_' + k: v for k, v in val_met.items()})
+            log.update(**{'val_' + k: v for k, v in content_metrics(val_gts, val_res).items()})
 
         self.model.eval()
         with torch.no_grad():

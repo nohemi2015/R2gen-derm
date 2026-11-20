@@ -105,6 +105,17 @@ def make_transforms(backbone, train, args=None):
 
 
 @torch.no_grad()
+def predict_dx_probs(model, loader, device):
+    model.eval()
+    out = []
+    for x, _ in loader:
+        with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=device == 'cuda'):
+            logits = model(x.to(device, non_blocking=True))
+        out.append(torch.softmax(logits[0].float(), 1).cpu())
+    return torch.cat(out).numpy()
+
+
+@torch.no_grad()
 def predict_logits(model, loader, device):
     model.eval()
     out = [[] for _ in FIELDS]
@@ -190,6 +201,13 @@ def predict(args):
     truth = [parse(e['report']) for e in ex]
     acc = {f: float(np.mean([inv[f][int(q)] == t[k] for q, t in zip(p[k], truth)])) for k, f in enumerate(FIELDS)}
     json.dump(dict(field_accuracy=acc, n=len(ex)), open(os.path.join(args.save_dir, 'metrics.json'), 'w'), indent=1)
+    if args.save_probs:
+        # revision: diagnosis probabilities, used to choose operating points on the validation split
+        probs = predict_dx_probs(model, loader, device)
+        cols = [inv['dx'][i] for i in range(probs.shape[1])]
+        dfp = pd.DataFrame(probs, columns=cols)
+        dfp.insert(0, 'id', [e['id'] for e in ex])
+        dfp.to_csv(os.path.join(args.save_dir, 'probs_dx.csv'), index=False)
     print('saved {} predictions | field accuracy {}'.format(len(ex), {k: round(v, 4) for k, v in acc.items()}))
 
 
@@ -212,6 +230,7 @@ def main():
     ap.add_argument('--tone_aug_refs', default=None)
     ap.add_argument('--tone_aug_p', type=float, default=0.0)
     ap.add_argument('--no_pretrained', action='store_true', help='random weights (pipeline test only)')
+    ap.add_argument('--save_probs', action='store_true', help='also write probs_dx.csv (diagnosis probabilities)')
     args = ap.parse_args()
     train(args) if args.mode == 'train' else predict(args)
 
